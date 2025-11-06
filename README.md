@@ -36,7 +36,7 @@ Incluye:
 
 Ejecuta en **MySQL Workbench**:
 
-ESTA ES LA BASE DE DATOS:
+ESTA ES LA BASE DE DATOS: (de igual manera se encuentra en el archivo hola.txt)
 
 -- eliminar base de datos si existe
 drop database if exists portal_avisos;
