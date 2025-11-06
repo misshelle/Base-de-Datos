@@ -1,5 +1,6 @@
 {
   "java.project.referencedLibraries": [
-    "lib\mysql-connector-j-9.5.0.jar"
+    "lib/mysql-connector-j-9.5.0.jar",
+    "lib/flatlaf-3.6.2.jar"
   ]
 }

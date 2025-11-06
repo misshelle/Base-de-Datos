@@ -91,10 +91,12 @@ select * from avisos; -- ver el ingreso de datos
 
 Desde la raíz del proyecto:
 
-javac -cp "lib/mysql-connector-j-9.5.0.jar;src" -d bin src/database/*.java src/models/*.java src/dao/*.java src/ui/*.java
+para cmd:  javac -encoding UTF-8 -cp "lib/*;src" -d bin src/**/*.java
+para powershell: javac -encoding UTF-8 -cp ".\lib\*;.\src" -d .\bin (Get-ChildItem -Recurse -Filter *.java | ForEach-Object { $_.FullName })
 
 2️⃣ Ejecutar
-java -cp "lib/mysql-connector-j-9.5.0.jar;bin" ui.LoginGUI
+para cmd: java -cp "lib/*;bin" ui.LoginGUI
+para powershell: java -cp ".\lib\*;.\bin" ui.LoginGUI
 
 🧰 Tecnologías Utilizadas:
 

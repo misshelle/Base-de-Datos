@@ -1,13 +1,14 @@
 package ui;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
+import com.formdev.flatlaf.FlatDarkLaf;
 import dao.AvisoDAO;
 import database.Conexion;
-import models.Aviso;
 import java.awt.*;
 import java.sql.*;
 import java.util.List;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import models.Aviso;
 
 public class PortalAvisosGUI extends JFrame {
 
@@ -20,101 +21,156 @@ public class PortalAvisosGUI extends JFrame {
     private String usuarioNombre;
     private String usuarioRol;
 
-    // 🔹 Constructor con parámetros
+    // 🔹 Constructor
     public PortalAvisosGUI(String nombre, String rol) {
         this.usuarioNombre = nombre;
         this.usuarioRol = rol;
 
         setTitle("📢 Portal de Avisos Universitario");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(850, 550);
+        setSize(950, 600);
         setLocationRelativeTo(null);
-        setLayout(new BorderLayout(10, 10));
+        setLayout(new BorderLayout(15, 15));
 
-        // Panel de formulario
-        JPanel panelForm = new JPanel(new GridLayout(4, 2, 8, 8));
-        panelForm.setBorder(BorderFactory.createTitledBorder("Nuevo aviso"));
+        // --- Estilos generales ---
+        Font fuente = new Font("Segoe UI", Font.PLAIN, 15);
+        UIManager.put("Label.font", fuente);
+        UIManager.put("Button.font", fuente);
+        UIManager.put("Table.font", fuente);
+        UIManager.put("TableHeader.font", new Font("Segoe UI Semibold", Font.BOLD, 14));
 
-        panelForm.add(new JLabel("Profesor:"));
-        txtProfesor = new JTextField();
-        txtProfesor.setText(nombre);
-        panelForm.add(txtProfesor);
-
-        panelForm.add(new JLabel("Título:"));
-        txtTitulo = new JTextField();
-        panelForm.add(txtTitulo);
-
-        panelForm.add(new JLabel("Contenido:"));
-        txtContenido = new JTextArea(3, 20);
-        panelForm.add(new JScrollPane(txtContenido));
-
-        JButton btnAgregar = new JButton("Agregar");
-        JButton btnActualizar = new JButton("Actualizar");
-        JButton btnEliminar = new JButton("Eliminar");
-        JPanel panelBotones = new JPanel();
-        panelBotones.add(btnAgregar);
-        panelBotones.add(btnActualizar);
-        panelBotones.add(btnEliminar);
-
-        // Panel de tabla
-        modelo = new DefaultTableModel(new Object[]{"ID", "Profesor", "Título", "Contenido", "Fecha"}, 0);
+        // --- Tabla ---
+        modelo = new DefaultTableModel(new Object[]{"ID", "Profesor", "Título", "Contenido", "Fecha"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
         tabla = new JTable(modelo);
-        JScrollPane scroll = new JScrollPane(tabla);
+        tabla.setRowHeight(28);
+        tabla.getTableHeader().setBackground(new Color(25, 118, 210));
+        tabla.getTableHeader().setForeground(Color.WHITE);
+        tabla.setSelectionBackground(new Color(33, 150, 243));
+        tabla.setSelectionForeground(Color.WHITE);
+        tabla.setGridColor(new Color(60, 63, 65));
 
-        add(panelForm, BorderLayout.NORTH);
+        JScrollPane scroll = new JScrollPane(tabla);
+        scroll.getViewport().setBackground(new Color(43, 43, 43));
         add(scroll, BorderLayout.CENTER);
-        add(panelBotones, BorderLayout.SOUTH);
+
+        // Si es profesor
+        if (rol.equalsIgnoreCase("profesor")) {
+            JPanel panelForm = new JPanel(new GridLayout(4, 2, 10, 10));
+            panelForm.setBorder(BorderFactory.createTitledBorder("📝 Nuevo aviso"));
+            panelForm.setBackground(new Color(43, 43, 43));
+
+            panelForm.add(etiqueta("Profesor:"));
+            txtProfesor = new JTextField(nombre);
+            estiloCampo(txtProfesor);
+            panelForm.add(txtProfesor);
+
+            panelForm.add(etiqueta("Título:"));
+            txtTitulo = new JTextField();
+            estiloCampo(txtTitulo);
+            panelForm.add(txtTitulo);
+
+            panelForm.add(etiqueta("Contenido:"));
+            txtContenido = new JTextArea(3, 20);
+            estiloArea(txtContenido);
+            panelForm.add(new JScrollPane(txtContenido));
+
+            // --- Botones ---
+            JButton btnAgregar = botonAzul("Agregar");
+            JButton btnActualizar = botonAzul("Actualizar");
+            JButton btnEliminar = botonRojo("Eliminar");
+
+            JPanel panelBotones = new JPanel();
+            panelBotones.setBackground(new Color(43, 43, 43));
+            panelBotones.add(btnAgregar);
+            panelBotones.add(btnActualizar);
+            panelBotones.add(btnEliminar);
+
+            add(panelForm, BorderLayout.NORTH);
+            add(panelBotones, BorderLayout.SOUTH);
+
+            // Acciones
+            btnAgregar.addActionListener(e -> agregarAviso());
+            btnActualizar.addActionListener(e -> actualizarAviso());
+            btnEliminar.addActionListener(e -> eliminarAviso());
+
+            setTitle("👨‍🏫 Portal de Avisos - Profesor: " + nombre);
+
+        } else {
+            // Vista para estudiante
+            setTitle("👩‍🎓 Portal de Avisos - Estudiante: " + nombre);
+        }
 
         cargarAvisos();
-
-        // Acciones
-        btnAgregar.addActionListener(e -> agregarAviso());
-        btnActualizar.addActionListener(e -> actualizarAviso());
-        btnEliminar.addActionListener(e -> eliminarAviso());
-
-        // 🔹 Configuración según rol
-        if (rol.equalsIgnoreCase("estudiante")) {
-            txtProfesor.setEnabled(false);
-            btnAgregar.setEnabled(false);
-            btnActualizar.setEnabled(false);
-            btnEliminar.setEnabled(false);
-            setTitle("👩‍🎓 Portal de Avisos - Estudiante: " + nombre);
-        } else {
-            setTitle("👨‍🏫 Portal de Avisos - Profesor: " + nombre);
-        }
     }
 
-    // 🔹 Cargar avisos desde el DAO
+    // --- Métodos de estilo ---
+    private JLabel etiqueta(String texto) {
+        JLabel lbl = new JLabel(texto);
+        lbl.setForeground(Color.WHITE);
+        return lbl;
+    }
+
+    private void estiloCampo(JTextField campo) {
+        campo.setBackground(new Color(60, 63, 65));
+        campo.setForeground(Color.WHITE);
+        campo.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100)));
+    }
+
+    private void estiloArea(JTextArea area) {
+        area.setBackground(new Color(60, 63, 65));
+        area.setForeground(Color.WHITE);
+        area.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100)));
+    }
+
+    private JButton botonAzul(String texto) {
+        JButton b = new JButton(texto);
+        b.setBackground(new Color(33, 150, 243));
+        b.setForeground(Color.WHITE);
+        b.setFocusPainted(false);
+        b.setPreferredSize(new Dimension(130, 40));
+        return b;
+    }
+
+    private JButton botonRojo(String texto) {
+        JButton b = new JButton(texto);
+        b.setBackground(new Color(229, 57, 53));
+        b.setForeground(Color.WHITE);
+        b.setFocusPainted(false);
+        b.setPreferredSize(new Dimension(130, 40));
+        return b;
+    }
+
+    // --- Métodos funcionales ---
     private void cargarAvisos() {
         modelo.setRowCount(0);
         List<Aviso> avisos = dao.listarAvisos();
         for (Aviso a : avisos) {
             modelo.addRow(new Object[]{
-                a.getId(),
-                a.getNombreProfesor(),
-                a.getTitulo(),
-                a.getContenido(),
-                a.getFechaPublicacion()
+                    a.getId(),
+                    a.getNombreProfesor(),
+                    a.getTitulo(),
+                    a.getContenido(),
+                    a.getFechaPublicacion()
             });
         }
     }
 
-    // 🔹 Obtener ID del profesor por nombre completo
     private int obtenerIdProfesor(String nombreCompleto) throws SQLException {
         String sql = "SELECT id_profesor FROM profesor WHERE CONCAT(nombre_profesor, ' ', apellido_profesor) = ?";
         try (Connection conn = Conexion.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, nombreCompleto);
             ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt("id_profesor");
-            } else {
-                throw new SQLException("No se encontró el profesor con nombre: " + nombreCompleto);
-            }
+            if (rs.next()) return rs.getInt("id_profesor");
+            throw new SQLException("No se encontró el profesor con nombre: " + nombreCompleto);
         }
     }
 
-    // 🔹 Agregar aviso
     private void agregarAviso() {
         try {
             String profesor = txtProfesor.getText();
@@ -135,22 +191,17 @@ public class PortalAvisosGUI extends JFrame {
             } else {
                 JOptionPane.showMessageDialog(this, "⚠️ No se pudo agregar el aviso.");
             }
-
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(this, "Error SQL: " + ex.getMessage());
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al agregar aviso: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
         }
     }
 
-    // 🔹 Actualizar aviso
     private void actualizarAviso() {
         int fila = tabla.getSelectedRow();
         if (fila == -1) {
             JOptionPane.showMessageDialog(this, "Selecciona un aviso para actualizar.");
             return;
         }
-
         try {
             int id = (int) modelo.getValueAt(fila, 0);
             String profesor = txtProfesor.getText();
@@ -162,15 +213,12 @@ public class PortalAvisosGUI extends JFrame {
             if (dao.actualizarAviso(aviso)) {
                 JOptionPane.showMessageDialog(this, "♻️ Aviso actualizado correctamente.");
                 cargarAvisos();
-            } else {
-                JOptionPane.showMessageDialog(this, "⚠️ No se pudo actualizar el aviso.");
             }
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error al actualizar: " + e.getMessage());
         }
     }
 
-    // 🔹 Eliminar aviso
     private void eliminarAviso() {
         int fila = tabla.getSelectedRow();
         if (fila == -1) {
@@ -185,25 +233,27 @@ public class PortalAvisosGUI extends JFrame {
                 if (dao.eliminarAviso(id)) {
                     JOptionPane.showMessageDialog(this, "🗑 Aviso eliminado correctamente.");
                     cargarAvisos();
-                } else {
-                    JOptionPane.showMessageDialog(this, "⚠️ No se pudo eliminar el aviso.");
                 }
             } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Error al eliminar: " + e.getMessage());
+                JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
             }
         }
     }
 
-    // 🔹 Limpiar campos
     private void limpiarCampos() {
         txtTitulo.setText("");
         txtContenido.setText("");
     }
 
-    // 🔹 Main para pruebas
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new PortalAvisosGUI("juan perez", "profesor").setVisible(true));
+        try {
+            FlatDarkLaf.setup(); // Tema oscuro moderno
+        } catch (Exception e) {
+            System.err.println("Error al aplicar FlatLaf: " + e.getMessage());
+        }
+
+        SwingUtilities.invokeLater(() ->
+                new PortalAvisosGUI("Juan Pérez", "profesor").setVisible(true)
+        );
     }
 }
-
-
