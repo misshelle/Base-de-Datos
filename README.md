@@ -36,31 +36,55 @@ Incluye:
 
 Ejecuta en **MySQL Workbench**:
 
-```sql
-DROP DATABASE IF EXISTS portal_avisos;
-CREATE DATABASE portal_avisos;
-USE portal_avisos;
+ESTA ES LA BASE DE DATOS:
 
-CREATE TABLE usuario (
-  id_usuario INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(100) NOT NULL,
-  correo VARCHAR(100) NOT NULL UNIQUE,
-  rol ENUM('profesor', 'estudiante') NOT NULL
+-- eliminar base de datos si existe
+drop database if exists portal_avisos;
+create database portal_avisos;
+use portal_avisos;
+
+-- tabla profesor
+create table profesor (
+  id_profesor int auto_increment primary key,
+  nombre_profesor varchar(100) not null,
+  apellido_profesor varchar(100) not null,
+  correo_profesor varchar(100) not null unique
 );
 
-CREATE TABLE aviso (
-  id_aviso INT AUTO_INCREMENT PRIMARY KEY,
-  titulo VARCHAR(150) NOT NULL,
-  contenido TEXT NOT NULL,
-  fecha_publicacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  id_profesor INT,
-  FOREIGN KEY (id_profesor) REFERENCES usuario(id_usuario)
+-- tabla estudiante
+create table estudiante (
+  id_estudiante int auto_increment primary key,
+  nombre_estudiante varchar(100) not null,
+  apellido_estudiante varchar(100) not null,
+  correo_estudiante varchar(100) not null unique
 );
 
--- Inserta usuarios de prueba
-INSERT INTO usuario (nombre, correo, rol) VALUES
-('Profesor Juan', 'juan@uni.com', 'profesor'),
-('Estudiante Ana', 'ana@uni.com', 'estudiante');
+-- tabla aviso
+create table avisos (
+  id_aviso int auto_increment primary key,
+  titulo varchar(150) not null,
+  contenido text not null,
+  fecha_publicacion timestamp default current_timestamp,
+  id_profesor int not null,
+  foreign key (id_profesor) references profesor(id_profesor)
+);
+
+-- insertar profesores
+insert into profesor (nombre_profesor, apellido_profesor, correo_profesor) values
+('juan', 'perez', 'juan.perez@uni.com'),
+('maria', 'gomez', 'maria.gomez@uni.com');
+
+-- insertar estudiantes
+insert into estudiante (nombre_estudiante, apellido_estudiante, correo_estudiante) values
+('ana', 'lopez', 'ana.lopez@uni.com'),
+('carlos', 'diaz', 'carlos.diaz@uni.com');
+
+-- insertar avisos
+insert into avisos (titulo, contenido, id_profesor) values
+('bienvenida al semestre', 'recuerden revisar el calendario académico.', 1),
+('tarea 1 disponible', 'la primera tarea está publicada en la plataforma.', 2);
+
+select * from avisos; -- ver el ingreso de datos
 
 🖥️ Ejecución del Proyecto
 1️⃣ Compilar
