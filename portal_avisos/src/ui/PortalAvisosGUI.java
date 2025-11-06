@@ -27,7 +27,7 @@ public class PortalAvisosGUI extends JFrame {
 
         setTitle("📢 Portal de Avisos Universitario");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(800, 550);
+        setSize(850, 550);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
@@ -37,6 +37,7 @@ public class PortalAvisosGUI extends JFrame {
 
         panelForm.add(new JLabel("Profesor:"));
         txtProfesor = new JTextField();
+        txtProfesor.setText(nombre);
         panelForm.add(txtProfesor);
 
         panelForm.add(new JLabel("Título:"));
@@ -66,64 +67,49 @@ public class PortalAvisosGUI extends JFrame {
 
         cargarAvisos();
 
-        // Acciones de botones
+        // Acciones
         btnAgregar.addActionListener(e -> agregarAviso());
         btnActualizar.addActionListener(e -> actualizarAviso());
         btnEliminar.addActionListener(e -> eliminarAviso());
 
-        // 🔹 Configuración según el rol
-        if (rol.equals("estudiante")) {
-            txtProfesor.setText(nombre);
+        // 🔹 Configuración según rol
+        if (rol.equalsIgnoreCase("estudiante")) {
             txtProfesor.setEnabled(false);
             btnAgregar.setEnabled(false);
             btnActualizar.setEnabled(false);
             btnEliminar.setEnabled(false);
             setTitle("👩‍🎓 Portal de Avisos - Estudiante: " + nombre);
         } else {
-            txtProfesor.setText(nombre);
             setTitle("👨‍🏫 Portal de Avisos - Profesor: " + nombre);
         }
     }
 
-    // 🔹 Cargar avisos desde la BD
+    // 🔹 Cargar avisos desde el DAO
     private void cargarAvisos() {
-        try {
-            modelo.setRowCount(0);
-            String sql = """
-                SELECT a.id_aviso, u.nombre, a.titulo, a.contenido, a.fecha_publicacion
-                FROM aviso a
-                JOIN usuario u ON a.id_profesor = u.id_usuario
-                ORDER BY a.fecha_publicacion DESC
-            """;
-            try (Connection conn = Conexion.getConnection();
-                 Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery(sql)) {
-                while (rs.next()) {
-                    modelo.addRow(new Object[]{
-                        rs.getInt("id_aviso"),
-                        rs.getString("nombre"),
-                        rs.getString("titulo"),
-                        rs.getString("contenido"),
-                        rs.getString("fecha_publicacion")
-                    });
-                }
-            }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al cargar avisos: " + e.getMessage());
+        modelo.setRowCount(0);
+        List<Aviso> avisos = dao.listarAvisos();
+        for (Aviso a : avisos) {
+            modelo.addRow(new Object[]{
+                a.getId(),
+                a.getNombreProfesor(),
+                a.getTitulo(),
+                a.getContenido(),
+                a.getFechaPublicacion()
+            });
         }
     }
 
-    // 🔹 Obtener ID de profesor según nombre
-    private int obtenerIdProfesor(String nombre) throws SQLException {
-        String sql = "SELECT id_usuario FROM usuario WHERE nombre = ?";
+    // 🔹 Obtener ID del profesor por nombre completo
+    private int obtenerIdProfesor(String nombreCompleto) throws SQLException {
+        String sql = "SELECT id_profesor FROM profesor WHERE CONCAT(nombre_profesor, ' ', apellido_profesor) = ?";
         try (Connection conn = Conexion.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, nombre);
+            stmt.setString(1, nombreCompleto);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                return rs.getInt("id_usuario");
+                return rs.getInt("id_profesor");
             } else {
-                throw new SQLException("No existe un profesor con ese nombre.");
+                throw new SQLException("No se encontró el profesor con nombre: " + nombreCompleto);
             }
         }
     }
@@ -141,16 +127,19 @@ public class PortalAvisosGUI extends JFrame {
             }
 
             int idProfesor = obtenerIdProfesor(profesor);
-            Aviso aviso = new Aviso(0, titulo, contenido, null, idProfesor);
-            dao.agregarAviso(aviso);
-            JOptionPane.showMessageDialog(this, "✅ Aviso agregado correctamente.");
-            cargarAvisos();
-            limpiarCampos();
+            Aviso aviso = new Aviso(0, titulo, contenido, null, idProfesor, profesor);
+            if (dao.agregarAviso(aviso)) {
+                JOptionPane.showMessageDialog(this, "✅ Aviso agregado correctamente.");
+                cargarAvisos();
+                limpiarCampos();
+            } else {
+                JOptionPane.showMessageDialog(this, "⚠️ No se pudo agregar el aviso.");
+            }
 
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this, "Error SQL: " + ex.getMessage());
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al agregar: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error al agregar aviso: " + e.getMessage());
         }
     }
 
@@ -169,10 +158,13 @@ public class PortalAvisosGUI extends JFrame {
             String contenido = txtContenido.getText();
             int idProfesor = obtenerIdProfesor(profesor);
 
-            Aviso aviso = new Aviso(id, titulo, contenido, null, idProfesor);
-            dao.actualizarAviso(aviso);
-            JOptionPane.showMessageDialog(this, "♻️ Aviso actualizado.");
-            cargarAvisos();
+            Aviso aviso = new Aviso(id, titulo, contenido, null, idProfesor, profesor);
+            if (dao.actualizarAviso(aviso)) {
+                JOptionPane.showMessageDialog(this, "♻️ Aviso actualizado correctamente.");
+                cargarAvisos();
+            } else {
+                JOptionPane.showMessageDialog(this, "⚠️ No se pudo actualizar el aviso.");
+            }
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error al actualizar: " + e.getMessage());
         }
@@ -190,25 +182,27 @@ public class PortalAvisosGUI extends JFrame {
         int confirm = JOptionPane.showConfirmDialog(this, "¿Eliminar este aviso?", "Confirmar", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                dao.eliminarAviso(id);
-                JOptionPane.showMessageDialog(this, "🗑 Aviso eliminado.");
-                cargarAvisos();
+                if (dao.eliminarAviso(id)) {
+                    JOptionPane.showMessageDialog(this, "🗑 Aviso eliminado correctamente.");
+                    cargarAvisos();
+                } else {
+                    JOptionPane.showMessageDialog(this, "⚠️ No se pudo eliminar el aviso.");
+                }
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(this, "Error al eliminar: " + e.getMessage());
             }
         }
     }
 
-    // 🔹 Limpiar campos del formulario
+    // 🔹 Limpiar campos
     private void limpiarCampos() {
-        txtProfesor.setText("");
         txtTitulo.setText("");
         txtContenido.setText("");
     }
 
-    // 🔹 Punto de entrada
+    // 🔹 Main para pruebas
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new LoginGUI().setVisible(true));
+        SwingUtilities.invokeLater(() -> new PortalAvisosGUI("juan perez", "profesor").setVisible(true));
     }
 }
 

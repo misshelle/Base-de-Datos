@@ -11,7 +11,7 @@ public class LoginGUI extends JFrame {
     private JButton btnEntrar;
 
     public LoginGUI() {
-        // Intenta aplicar Nimbus (o el L&F por defecto si Nimbus no está)
+        // Look and Feel moderno (Nimbus)
         try {
             for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
                 if ("Nimbus".equals(info.getName())) {
@@ -27,9 +27,9 @@ public class LoginGUI extends JFrame {
         setLocationRelativeTo(null);
         setResizable(false);
 
-        // Panel principal con padding y color de fondo suave
+        // Panel principal
         JPanel main = new JPanel(new GridBagLayout());
-        main.setBackground(new Color(250, 245, 255)); // lila muy suave
+        main.setBackground(new Color(250, 245, 255));
         main.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
         add(main);
 
@@ -46,14 +46,14 @@ public class LoginGUI extends JFrame {
         gbc.weightx = 1;
         main.add(titulo, gbc);
 
-        // Etiqueta
+        // Etiqueta de correo
         JLabel lblCorreo = new JLabel("Correo institucional:");
         lblCorreo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         lblCorreo.setForeground(new Color(70, 60, 90));
         gbc.gridy = 1;
         main.add(lblCorreo, gbc);
 
-        // Campo de texto centrado y con estilo
+        // Campo de texto
         txtCorreo = new JTextField();
         txtCorreo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         txtCorreo.setHorizontalAlignment(JTextField.CENTER);
@@ -67,7 +67,7 @@ public class LoginGUI extends JFrame {
         gbc.gridy = 2;
         main.add(txtCorreo, gbc);
 
-        // Botón estilizado
+        // Botón
         btnEntrar = new JButton("Entrar");
         btnEntrar.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnEntrar.setForeground(Color.WHITE);
@@ -76,8 +76,6 @@ public class LoginGUI extends JFrame {
         btnEntrar.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
         btnEntrar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnEntrar.setPreferredSize(new Dimension(300, 38));
-
-        // Hacer que el botón tenga aspecto plano en algunos L&F
         btnEntrar.setOpaque(true);
         btnEntrar.setBorderPainted(false);
 
@@ -85,7 +83,6 @@ public class LoginGUI extends JFrame {
         gbc.anchor = GridBagConstraints.CENTER;
         main.add(btnEntrar, gbc);
 
-        // Pie con texto de ayuda pequeño
         JLabel footer = new JLabel("Usa tu correo institucional para identificarte", SwingConstants.CENTER);
         footer.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         footer.setForeground(new Color(110, 100, 120));
@@ -94,11 +91,8 @@ public class LoginGUI extends JFrame {
 
         // Acciones
         btnEntrar.addActionListener(e -> autenticar());
-
-        // Permitir pulsar ENTER en el campo para enviar
         txtCorreo.addActionListener(e -> autenticar());
 
-        // Efecto visual on hover para el botón
         btnEntrar.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -119,21 +113,35 @@ public class LoginGUI extends JFrame {
         }
 
         try (Connection conn = Conexion.getConnection()) {
-            String sql = "SELECT nombre, rol FROM usuario WHERE correo = ?";
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setString(1, correo);
-            ResultSet rs = stmt.executeQuery();
+            // 1️⃣ Buscar en tabla profesor
+            String sqlProfesor = "SELECT CONCAT(nombre_profesor, ' ', apellido_profesor) AS nombre FROM profesor WHERE correo_profesor = ?";
+            PreparedStatement stmtP = conn.prepareStatement(sqlProfesor);
+            stmtP.setString(1, correo);
+            ResultSet rsP = stmtP.executeQuery();
 
-            if (rs.next()) {
-                String nombre = rs.getString("nombre");
-                String rol = rs.getString("rol");
-
+            if (rsP.next()) {
+                String nombre = rsP.getString("nombre");
                 dispose();
-                // Abrir la ventana principal (tu código actual)
-                SwingUtilities.invokeLater(() -> new PortalAvisosGUI(nombre, rol).setVisible(true));
-            } else {
-                JOptionPane.showMessageDialog(this, "Usuario no encontrado.", "Error", JOptionPane.ERROR_MESSAGE);
+                SwingUtilities.invokeLater(() -> new PortalAvisosGUI(nombre, "profesor").setVisible(true));
+                return;
             }
+
+            // 2️⃣ Buscar en tabla estudiante
+            String sqlEstudiante = "SELECT CONCAT(nombre_estudiante, ' ', apellido_estudiante) AS nombre FROM estudiante WHERE correo_estudiante = ?";
+            PreparedStatement stmtE = conn.prepareStatement(sqlEstudiante);
+            stmtE.setString(1, correo);
+            ResultSet rsE = stmtE.executeQuery();
+
+            if (rsE.next()) {
+                String nombre = rsE.getString("nombre");
+                dispose();
+                SwingUtilities.invokeLater(() -> new PortalAvisosGUI(nombre, "estudiante").setVisible(true));
+                return;
+            }
+
+            // 3️⃣ Si no está en ninguna tabla
+            JOptionPane.showMessageDialog(this, "Correo no registrado como profesor ni estudiante.", "Error", JOptionPane.ERROR_MESSAGE);
+
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error al autenticar: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
